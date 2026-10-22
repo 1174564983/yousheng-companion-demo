@@ -1,0 +1,9 @@
+node_modules
+dist
+output
+.env.local
+.git
+*.log
+备份
+Bender_HandAnimation_C4D.fbm
+Image Textures

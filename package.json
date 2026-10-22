@@ -1,0 +1,28 @@
+{
+  "name": "yousheng-companion-demo",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c yellow,cyan \"node server/index.mjs\" \"vite\"",
+    "dev:web": "vite",
+    "build": "tsc -b && vite build",
+    "start": "node server/index.mjs",
+    "test:smoke": "node scripts/smoke-test.mjs",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.1.10",
+    "@types/react-dom": "^19.1.7",
+    "@vitejs/plugin-react": "^5.0.4",
+    "concurrently": "^9.2.1",
+    "playwright": "^1.64.1",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.7"
+  }
+}
