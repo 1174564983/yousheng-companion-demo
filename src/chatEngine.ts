@@ -1281,25 +1281,52 @@ export const starterMessages = (state: CharacterState): Message[] => {
     minuteOfDay >= activity.startHour * 60 &&
     minuteOfDay < activity.endHour * 60;
   const upcoming = upcomingEventsFor(state, 1)[0];
+  const alreadyAsleep = activity.title === "已经睡了";
+  const firstText = alreadyAsleep
+    ? "我先睡啦。手机放到床头了，明早看到再回你。"
+    : isActive
+      ? `我到${activity.place}了，今天先忙${activity.title}。`
+      : upcoming
+        ? `等会儿要去${upcoming.place}，${upcoming.title}。先跟你说一声。`
+        : "我今天的事情差不多忙完了。先来跟你说一声。";
+  const secondText = alreadyAsleep
+    ? "不用守着手机，晚安。"
+    : isActive
+      ? `估计忙到 ${clockTime(activity.endHour)}。不用一直等我，忙完我来找你。`
+      : upcoming
+        ? `${clockTime(upcoming.startHour)} 再出门。你那边呢？`
+        : "你现在在做什么？";
+
   return [
     {
       id: "seed-1",
       role: "assistant",
-      text: isActive
-        ? `我现在在${activity.place}，${activity.title}。${activity.detail} 刚在一起就各忙各的，不过我还是想知道你那边怎么样。`
-        : upcoming
-          ? `现在这段没安排。等会儿 ${clockTime(
-              upcoming.startHour,
-            )} 要${upcoming.title}。趁这会儿想问问你，今天过得怎么样？`
-          : "今天的事差不多了，我先在家缓一会儿。你那边呢？",
-      createdAt: Date.now() - 1000 * 60 * 8,
+      text: firstText,
+      createdAt: Date.now() - 1000 * 60 * 12,
       worldTime: {
         day: state.day,
         hour: state.hour,
         minute: state.minute ?? 0,
       },
       meta: {
-        availability: isActive ? "busy" : "free",
+        availability: isActive ? "busy" : alreadyAsleep ? "resting" : "free",
+        stance: "listen",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    },
+    {
+      id: "seed-2",
+      role: "assistant",
+      text: secondText,
+      createdAt: Date.now() - 1000 * 60 * 11,
+      worldTime: {
+        day: state.day,
+        hour: state.hour,
+        minute: state.minute ?? 0,
+      },
+      meta: {
+        availability: isActive ? "busy" : alreadyAsleep ? "resting" : "free",
         stance: "listen",
         usedMemoryIds: [],
         activity: activity.title,

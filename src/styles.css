@@ -709,6 +709,33 @@ button:disabled {
   font-size: 8px;
 }
 
+.delivery-seen {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  color: #8a887d;
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 0.02em;
+}
+
+.delivery-seen i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #70865f;
+  box-shadow: 0 0 0 3px rgba(112, 134, 95, 0.12);
+  animation: seen-pulse 2s ease-in-out infinite;
+}
+
+@keyframes seen-pulse {
+  50% {
+    opacity: 0.45;
+    transform: scale(0.8);
+  }
+}
+
 .message-list {
   flex: 1;
   overflow-y: auto;

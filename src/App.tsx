@@ -397,6 +397,7 @@ function App() {
   const [showEmotionPanel, setShowEmotionPanel] = useState(false);
   const [toast, setToast] = useState("");
   const [nowMs, setNowMs] = useState(Date.now());
+  const [queueSeenAt, setQueueSeenAt] = useState(Date.now());
   const [modelStatus, setModelStatus] = useState<ModelStatus>({
     configured: false,
     provider: "local",
@@ -404,6 +405,7 @@ function App() {
   });
   const messageListRef = useRef<HTMLDivElement | null>(null);
   const autoReplyInFlight = useRef(false);
+  const queuedAckRef = useRef(false);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNowMs(Date.now()), 1000);
@@ -529,6 +531,24 @@ function App() {
     ? "resting"
     : rawAvailability;
   const wantsToTalk = currentAvailability === "free";
+
+  useEffect(() => {
+    if (
+      !unansweredMessages.length ||
+      wantsToTalk ||
+      current.title === "已经睡了"
+    ) {
+      queuedAckRef.current = false;
+      return;
+    }
+
+    setQueueSeenAt(Date.now());
+    const timer = window.setInterval(
+      () => setQueueSeenAt(Date.now()),
+      2 * 60 * 1000,
+    );
+    return () => window.clearInterval(timer);
+  }, [unansweredMessages.length, wantsToTalk, current.title]);
 
   useEffect(() => {
     if (
@@ -999,7 +1019,36 @@ function App() {
       current.title !== "已经睡了" &&
       (!isCurrentEventActive || current.chatAvailability === "free");
     if (!crisis && !wantsToTalk && !canAnswerDirectFact) {
+      const alreadyQueued = unansweredMessages.length > 0;
       setUnansweredMessages((items) => [...items, userMessage]);
+      setQueueSeenAt(Date.now());
+      if (
+        !alreadyQueued &&
+        !queuedAckRef.current &&
+        current.title !== "已经睡了"
+      ) {
+        queuedAckRef.current = true;
+        const holdingMessage: Message = {
+          id: makeId("assistant-seen"),
+          role: "assistant",
+          text: emotionallyWithdrawn
+            ? `我在。先让我缓一下，晚点再认真回你。`
+            : `看到啦。我在${currentDisplayPlace}，忙完来找你。`,
+          createdAt: Date.now(),
+          worldTime: {
+            day: liveState.day,
+            hour: liveState.hour,
+            minute: liveState.minute,
+          },
+          meta: {
+            availability: currentAvailability,
+            stance: "boundary",
+            usedMemoryIds: [],
+            activity: currentDisplayTitle,
+          },
+        };
+        setMessages((items) => [...items, holdingMessage]);
+      }
       await new Promise((resolve) => window.setTimeout(resolve, 450));
       setPending(false);
       setToast(
@@ -1502,6 +1551,17 @@ function App() {
                   {current.title === "已经睡了"
                     ? `她已经睡了，明早会主动看消息，不用再问一次。`
                     : `她现在在${currentDisplayPlace}，忙完会主动回你，不用再问一次。`}
+                  <small className="delivery-seen">
+                    <i />
+                    {current.title === "已经睡了"
+                      ? "她睡着时不会自动回复"
+                      : nowMs - queueSeenAt < 15_000
+                        ? "她刚抽空看了一眼"
+                        : `她 ${Math.max(
+                            1,
+                            Math.ceil((nowMs - queueSeenAt) / 60_000),
+                          )} 分钟前抽空看了一眼`}
+                  </small>
                 </div>
               )}
 

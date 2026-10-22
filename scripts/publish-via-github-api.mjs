@@ -51,7 +51,16 @@ const remoteCommit = await api(`/git/commits/${remoteSha}`);
 const localBaseTree = git(["rev-parse", "refs/remotes/origin/main^{tree}"])
   .toString("utf8")
   .trim();
-if (remoteCommit.tree.sha !== localBaseTree) {
+const localParentTree = git(["rev-parse", "HEAD^^{tree}"])
+  .toString("utf8")
+  .trim();
+const diffBase =
+  remoteCommit.tree.sha === localBaseTree
+    ? "refs/remotes/origin/main"
+    : remoteCommit.tree.sha === localParentTree
+      ? "HEAD^"
+      : null;
+if (!diffBase) {
   throw new Error(
     "Remote main contains unrelated changes; refusing to overwrite it",
   );
@@ -63,7 +72,7 @@ const statusText = git([
   "diff",
   "--name-status",
   "--no-renames",
-  "refs/remotes/origin/main..HEAD",
+  `${diffBase}..HEAD`,
 ]).toString("utf8");
 const changes = statusText
   .split(/\r?\n/)
