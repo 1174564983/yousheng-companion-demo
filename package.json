@@ -9,9 +9,13 @@
     "build": "tsc -b && vite build",
     "start": "node server/index.mjs",
     "test:smoke": "node scripts/smoke-test.mjs",
+    "test:conversation": "node scripts/conversation-stress-test.mjs",
+    "test:reply-parser": "node scripts/reply-parser-test.mjs",
+    "publish:github-api": "node scripts/publish-via-github-api.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
+    "lucide-react": "^1.60.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },

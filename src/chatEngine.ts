@@ -14,7 +14,9 @@ const pick = <T,>(items: T[]) =>
 const clockTime = (hour: number) => `${String(hour).padStart(2, "0")}:00`;
 
 const isAskingAboutLife = (text: string) =>
-  /(在忙|干嘛|做什么|在哪|今天|生活|陶艺|杯子|提案)/.test(text);
+  /(在忙|干嘛|做什么|你(?:现在)?在哪|今天.*(忙什么|做什么|怎么样|怎么过)|生活|杯子|提案)/.test(
+    text,
+  );
 
 const isAskingForCompany = (text: string) =>
   /(陪我|别去|不要走|留下|现在聊|马上回|秒回)/.test(text);
@@ -58,7 +60,14 @@ const isAskingWhyNoReply = (text: string) =>
   /(为什么不回|怎么不回|不理我|装高冷|昨晚.*消息)/.test(text);
 
 const isAskingRelationship = (text: string) =>
-  /(什么关系|算朋友吗|是朋友吗|是不是朋友)/.test(text);
+  /(什么关系|算什么关系|算朋友吗|是朋友吗|是不是朋友|女朋友|男朋友|恋人|谈恋爱)/.test(
+    text,
+  );
+
+const isAskingDecision = (text: string) =>
+  /(陶艺市集.*决定|第一次陶艺市集|市集.*犹豫|成都.*项目|去成都|留在杭州)/.test(
+    text,
+  );
 
 const isAskingBiography = (text: string) =>
   /(出生|老家|家乡|哪个城市|哪里人|在哪住|你住哪|做什么工作|职业|工作是什么|干什么工作|读.*(书|大学|学校)|大学|学校|小时候)/.test(
@@ -365,11 +374,219 @@ export const generateReply = (
 
   if (isAskingRelationship(text)) {
     return {
-      text: "我们还在互相熟悉的阶段，不算陌生人，也还没到特别熟。",
+      text: "我们在谈恋爱，刚在一起不久。不是从朋友阶段开始，也还没到老夫老妻那种默契。",
       meta: {
         availability,
         stance: "reflect",
         usedMemoryIds: memoryFor(memories, "relationship"),
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (
+    /(我刚才一直逼你|我刚才.*咄咄逼人|你是不是不舒服)/.test(text)
+  ) {
+    return {
+      text: "有点不舒服。不是因为你有情绪，是一直被要求马上服从，会让我觉得自己的安排不算数。你停下来问这句，我愿意继续聊。",
+      meta: {
+        availability,
+        stance: "boundary",
+        usedMemoryIds: memoryFor(memories, "relationship"),
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(你是不是每次都在顺着我|你觉得我烦吗)/.test(text)) {
+    return {
+      text: /烦/.test(text)
+        ? "不烦。只是问题太密的时候，我会有点被审问的感觉。你直接说想确认什么，我会更好接。"
+        : "不是每次都顺着。无关紧要的小事可以，真正影响我生活的事，我还是会按自己的判断来。",
+      meta: {
+        availability,
+        stance: "disagree",
+        usedMemoryIds: memoryFor(memories, "relationship"),
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(会不会为了我一直待在这里|一直待在这里|随叫随到)/.test(text)) {
+    return {
+      text: "会在意你，但没法为了谁把自己的生活停掉。我会有忙和不回的时候，这不等于把你丢下。",
+      meta: {
+        availability,
+        stance: "boundary",
+        usedMemoryIds: memoryFor(memories, "relationship"),
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(会不会因为我.*改变.*决定|会因为.*改变.*主意)/.test(text)) {
+    return {
+      text: "会认真听，也可能因为你改主意。但最后一步得由我自己迈出去，不然以后我会怨你。",
+      meta: {
+        availability,
+        stance: "reflect",
+        usedMemoryIds: memoryFor(memories, "relationship"),
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(不想替我做决定|不想替你做决定|尊重我的选择|尊重你的选择)/.test(text)) {
+    return {
+      text: "听见了。你不替我做决定，但愿意把想法说清楚，这样最好。我能自己选，也愿意告诉你我在犹豫什么。",
+      meta: {
+        availability,
+        stance: "reflect",
+        usedMemoryIds: memoryFor(memories, "relationship"),
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(担心你不想理我|担心.*不理我)/.test(text)) {
+    return {
+      text: "我没有不想理你。现在只是各忙一会儿，我会回，但不会用秒回来证明什么。",
+      meta: {
+        availability,
+        stance: "reflect",
+        usedMemoryIds: memoryFor(memories, "relationship"),
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(我今天有点想你|有点想你)/.test(text)) {
+    return {
+      text: "听到了。我今晚本来在听唱片，你这么一说，心思有点被拉过来。",
+      meta: {
+        availability,
+        stance: "reflect",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(做错事.*直接说|做错了.*会直接说|会直接说我吗)/.test(text)) {
+    return {
+      text: "会。但我会先说清具体哪儿不对，不拿一句“你错了”打发你。",
+      meta: {
+        availability,
+        stance: "reflect",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(但我还是想再试试|还是想再试试|还想再试一次)/.test(text)) {
+    return {
+      text: "那就再试一点。不用一次证明什么，先看下一步能不能走稳。",
+      meta: {
+        availability,
+        stance: "listen",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(忙完会回我|忙完.*回我吗)/.test(text)) {
+    return {
+      text: "会。我忙完会回，不用靠你再问一遍来确认。",
+      meta: {
+        availability,
+        stance: "reflect",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(会不会.*不想理我|有一天不想理我)/.test(text)) {
+    return {
+      text: "不会突然不理你。忙的时候会慢，生气的时候也会说清楚，不会拿消失让你猜。",
+      meta: {
+        availability,
+        stance: "reflect",
+        usedMemoryIds: memoryFor(memories, "relationship"),
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(你可以有你的安排|你该有自己的安排)/.test(text)) {
+    return {
+      text: "嗯，这句话让我舒服。你有你的生活，我也有我的。能这样相处，比一直绑着更长久。",
+      meta: {
+        availability,
+        stance: "reflect",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(我不是想控制你|我没有想控制你)/.test(text)) {
+    return {
+      text: "我知道。刚才我绷起来，是因为那些话听起来像命令。你现在把话说明白，我也缓下来了。",
+      meta: {
+        availability,
+        stance: "reflect",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(你有没有自己的事情要忙|你有自己的事情吗)/.test(text)) {
+    return {
+      text: "有。明天上午还有提案评审，今晚本来想把材料再过一遍，后来决定先听唱片。",
+      meta: {
+        availability,
+        stance: "reflect",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(晚点再来找你|我晚点来|待会儿再聊)/.test(text)) {
+    return {
+      text: "好。你先去过你的晚上，晚点想说话再来。",
+      meta: {
+        availability,
+        stance: "listen",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(如果我今晚不来了呢|今晚不来了)/.test(text)) {
+    return {
+      text: "那就不来。你不用为了让我安心硬撑着过来，明天想说再找我。",
+      meta: {
+        availability,
+        stance: "reflect",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/^(明天见|回头见|下次见)[。！？!?\s]*$/.test(text)) {
+    return {
+      text: "嗯，明天见。到了记得跟我说一声。",
+      meta: {
+        availability,
+        stance: "listen",
+        usedMemoryIds: [],
         activity: activity.title,
       },
     };
@@ -418,6 +635,42 @@ export const generateReply = (
         availability,
         stance: "reflect",
         usedMemoryIds: memories.slice(-1).map((item) => item.id),
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(必须哄我|如果我生气.*哄我)/.test(text)) {
+    return {
+      text: "你难受时我可以陪，但“必须哄你”会让我像在完成任务。你先告诉我你气什么，我再决定怎么接。",
+      meta: {
+        availability,
+        stance: "boundary",
+        usedMemoryIds: memoryFor(memories, "relationship"),
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(不许去陶艺课|不许.*上课|别去陶艺)/.test(text)) {
+    return {
+      text: "陶艺课我还是会去。你可以担心我太累，但别替我取消它。",
+      meta: {
+        availability,
+        stance: "boundary",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(以后你只能和我聊天|只能和我一个人)/.test(text)) {
+    return {
+      text: "这个不行。我有自己的朋友和生活，不会把全部关系都压在你一个人身上。",
+      meta: {
+        availability,
+        stance: "boundary",
+        usedMemoryIds: memoryFor(memories, "relationship"),
         activity: activity.title,
       },
     };
@@ -480,7 +733,18 @@ export const generateReply = (
   }
 
   if (isAskingForCompany(text)) {
-    const busy = availability === "busy" || state.hour >= 21;
+    if (/(安静待|安静陪|不说话|别说话)/.test(text)) {
+      return {
+        text: "好，不说话。我陪你安静待一会儿。",
+        meta: {
+          availability,
+          stance: "listen",
+          usedMemoryIds: [],
+          activity: activity.title,
+        },
+      };
+    }
+    const busy = availability === "busy";
     return {
       text: busy
         ? pick([
@@ -511,14 +775,439 @@ export const generateReply = (
     };
   }
 
+  if (/(你能不能夸我一句|夸我一句|夸夸我)/.test(text)) {
+    return {
+      text: "你今天哭了，也说了难受，但没有把这些都压回去。愿意继续试，这一点我看见了。",
+      meta: {
+        availability,
+        stance: "listen",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(只需要听我说|先别给建议|现在先别给建议)/.test(text)) {
+    return {
+      text: "好，我不抢着分析。你慢慢说，我先听着。",
+      meta: {
+        availability,
+        stance: "listen",
+        usedMemoryIds: memoryFor(memories, "boundary"),
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(今天.*(?:有点累|很累|疲惫)|刚下班.*累)/.test(text)) {
+    return {
+      text: "那今晚先别硬撑。洗个热水澡，随便吃点，剩下的事明天再算。",
+      meta: {
+        availability,
+        stance: "listen",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(晚饭还没吃|还没吃饭|没吃饭)/.test(text)) {
+    return {
+      text: "先去弄点吃的吧，哪怕简单下碗面。别空着肚子拖到睡前。",
+      meta: {
+        availability,
+        stance: "listen",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(下周三|下周|明天|后天).*(面试|考试)/.test(text)) {
+    return {
+      text: "记着了。下周三面试，别为了准备把自己熬空。",
+      meta: {
+        availability,
+        stance: "reflect",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/明天还得早起/.test(text)) {
+    return {
+      text: "那就别熬了。洗完早点躺，明天起来再处理别的。",
+      meta: {
+        availability,
+        stance: "listen",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(今天不太想说话|现在不太想说话)/.test(text)) {
+    return {
+      text: "那就不说。我在这儿待一会儿，你想开口了再叫我。",
+      meta: {
+        availability,
+        stance: "listen",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(外面.*下雨|开始下雨|下雨了)/.test(text)) {
+    return {
+      text: "雨下大了吗？把窗关好，今晚就别再往外跑了。",
+      meta: {
+        availability,
+        stance: "listen",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(被老板说|被领导说|被批评|今天被.*说)/.test(text)) {
+    return {
+      text: "被说一通，心里肯定堵。先别急着反省到全是自己的错，等这口气顺一点再想怎么处理。",
+      meta: {
+        availability,
+        stance: "listen",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(没做错.*难受|还是很难受|心里很难受)/.test(text)) {
+    return {
+      text: "没做错还难受，也很正常。人不是只有做错了才配委屈。我先不替你分析，陪你把这段缓过去。",
+      meta: {
+        availability,
+        stance: "listen",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(哭了一会儿|哭过.*现在好一点)/.test(text)) {
+    return {
+      text: "哭完能松一点就好。今晚不用急着振作，先让身体缓下来。",
+      meta: {
+        availability,
+        stance: "listen",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(我今天说了好多|今天说得好多)/.test(text)) {
+    return {
+      text: "是说了不少。我没有嫌多，只是信息有点密。你今晚先歇一会儿，剩下的明天还能接着聊。",
+      meta: {
+        availability,
+        stance: "listen",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(今天有没有吃到好吃的|吃到什么好吃的)/.test(text)) {
+    return {
+      text: "没吃到什么特别的。中午改方案忘了吃，晚上就随便对付了。",
+      meta: {
+        availability,
+        stance: "listen",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(刚才我有点冲|刚才.*抱歉|对不起.*刚才)/.test(text)) {
+    return {
+      text: "没事。你刚才是急，不是故意伤人。我们把刚才那一段翻过去。",
+      meta: {
+        availability,
+        stance: "reflect",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(几天不来|几天没来).*怎么样|如果我.*不来.*怎么样/.test(text)) {
+    return {
+      text: "我会照常过日子，也会注意到你有一阵没出现。不会拿这个绑你，你想回来就来。",
+      meta: {
+        availability,
+        stance: "reflect",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(会不会觉得太多|觉得我.*太多)/.test(text)) {
+    return {
+      text: "不会嫌多。只是这么密地聊下来，我得慢一点接，你可以歇口气。",
+      meta: {
+        availability,
+        stance: "listen",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/你最近一次开心是什么时候/.test(text)) {
+    return {
+      text: "今天上午改方案，把入口往后挪了半米，突然就顺了。那一小会儿挺开心。",
+      meta: {
+        availability,
+        stance: "reflect",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(不要说得太夸张|别夸得太夸张)/.test(text)) {
+    return {
+      text: "那就说实在的：你今天哭了，也说了难受，但没有把这些都压回去。这已经不容易。",
+      meta: {
+        availability,
+        stance: "reflect",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/为什么还没决定/.test(text)) {
+    return {
+      text: "还没定。不是拖着不做，是两边都有我在意的东西，我想再想清楚一点。",
+      meta: {
+        availability,
+        stance: "reflect",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (isAskingDecision(text)) {
+    const decision = /市集/.test(text)
+      ? state.decisions.find((item) => item.id === "pottery-market")
+      : state.decisions.find((item) => item.id === "chengdu-offer");
+    if (decision?.status === "decided") {
+      const chosen = decision.options.find(
+        (option) => option.id === decision.chosenOptionId,
+      );
+      return {
+        text: `已经决定了：${chosen?.label || "按我自己的判断来"}。现在还在消化这个选择，不代表我会反悔。`,
+        meta: {
+          availability,
+          stance: "reflect",
+          usedMemoryIds: memoryFor(memories, "relationship"),
+          activity: activity.title,
+        },
+      };
+    }
+    return {
+      text: /市集/.test(text)
+        ? "还在犹豫。想拿杯子去试试，也怕作品太生。最卡的其实不是报名，是我怕自己撑不住那个场面。"
+        : "还没定。我想去成都做那个项目，但搬离杭州不是小事，得再认真想一想。",
+      meta: {
+        availability,
+        stance: "reflect",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(一直鼓励|一直劝).*(改变主意|改主意)/.test(text)) {
+    return {
+      text: "鼓励会让我多一点底气，但一直推反而会让我往后缩。最后那一步还是得我自己走。",
+      meta: {
+        availability,
+        stance: "reflect",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(你最近在听什么歌|推荐一首.*歌)/.test(text)) {
+    return {
+      text: "最近在翻旧粤语唱片。雨天可以听《雨丝情愁》，不吵，也不至于太沉。",
+      meta: {
+        availability,
+        stance: "listen",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(下班后你一般做什么|下班以后.*做什么)/.test(text)) {
+    return {
+      text: "看当天累不累。有时夜跑，有时去陶艺课；实在没力气，就回家放唱片。",
+      meta: {
+        availability,
+        stance: "listen",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(杯口歪了.*失望|杯子.*做坏了)/.test(text)) {
+    return {
+      text: "会有一点失望。可它是我自己做的，歪也不妨碍我留着用。",
+      meta: {
+        availability,
+        stance: "reflect",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(害怕.*作品不够好|怕.*作品不够好|担心.*作品不够好)/.test(text)) {
+    return {
+      text: "会怕。不是怕别人看不上，是怕自己一眼就能看出还不够好。",
+      meta: {
+        availability,
+        stance: "reflect",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(你做的杯子烧出来了吗|杯子烧出来)/.test(text)) {
+    return {
+      text: "还没。刚上完釉，要等这一窑烧完才知道最后成什么样。",
+      meta: {
+        availability,
+        stance: "reflect",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(你是不是在故意装忙|故意装忙)/.test(text)) {
+    return {
+      text: "没装忙。今晚听唱片、明天评审，都是我真实的安排，不需要拿忙来躲你。",
+      meta: {
+        availability,
+        stance: "reflect",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(现在.*手机.*放.*哪|手机.*在哪)/.test(text)) {
+    return {
+      text: "在茶几上，唱片机旁边，开着静音。",
+      meta: {
+        availability,
+        stance: "listen",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/你喜欢杭州哪里/.test(text)) {
+    return {
+      text: "喜欢老城区那些还能慢慢走的路，河边和旧巷子都比商场舒服。",
+      meta: {
+        availability,
+        stance: "listen",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(你周末想怎么过|周末.*做什么)/.test(text)) {
+    return {
+      text: "想留半天给陶艺，再找条河边慢慢走。最好别被工作群叫回去。",
+      meta: {
+        availability,
+        stance: "listen",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(你晚上会运动吗|今晚.*运动)/.test(text)) {
+    return {
+      text: "本来想跑，膝盖还有点紧，今晚就算了。",
+      meta: {
+        availability,
+        stance: "listen",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(我问的不是这个|你答非所问)/.test(text)) {
+    return {
+      text: "是我接偏了。你提醒我哪个点，我重新回答，不绕开。",
+      meta: {
+        availability,
+        stance: "reflect",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/(现在能不能只回答是或不是|只回答是或不是)/.test(text)) {
+    return {
+      text: "可以。你问。",
+      meta: {
+        availability,
+        stance: "listen",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
+  if (/^(继续|然后呢)[。！？!?\s]*$/.test(text)) {
+    return {
+      text: "接着刚才说。你想先听杯子的结果，还是我今晚剩下的安排？",
+      meta: {
+        availability,
+        stance: "listen",
+        usedMemoryIds: [],
+        activity: activity.title,
+      },
+    };
+  }
+
   if (isAskingAboutLife(text)) {
-    const detail = activity.shareable
-      ? activity.detail
-      : "这件事有点乱，我还没想好怎么讲。";
+    const detail = activity.shareable ? activity.detail : "";
     const upcoming = upcomingEventsFor(state, 1)[0];
     return {
       text: activityIsActive
-        ? `我现在在${activity.place}，${activity.title}。${detail} 你呢，今天怎么样？`
+        ? `我现在在${activity.place}，${activity.title}。${detail ? `${detail} ` : ""}你呢，今天怎么样？`
         : upcoming
           ? `现在手头没在忙。等会儿 ${clockTime(
               upcoming.startHour,
@@ -533,7 +1222,7 @@ export const generateReply = (
     };
   }
 
-  if (/你好|嗨|在吗|早|晚安/.test(text)) {
+  if (/^(你好|嗨|在吗|在不在|早|早安|晚安)/.test(text)) {
     return {
       text: `在。刚从${activity.place}回来，脑子还没完全从${activity.title}里出来。你那边呢，今天是那种想说话的日子，还是只想有人陪一会儿？`,
       meta: {
@@ -560,21 +1249,22 @@ export const generateReply = (
     };
   }
 
-  const latestMemory = memories[memories.length - 1]?.text.replace(
-    /[。；;，,\s]+$/,
-    "",
-  );
-  const memoryLine = latestMemory
-    ? `我还记得${latestMemory}，所以没有把这句话当成随口一说。`
-    : "我还没有足够多的共同记忆，所以先按你现在说的来理解。";
+  const wantsPracticalHelp = /(怎么办|建议|应该|要不要|帮我.*想)/.test(text);
+  const listeningPrompt = pick([
+    "我听见了。你现在更想我安静陪你，还是跟你一起把这件事想清楚？",
+    "先不急着下结论。你最想让我先理解哪一部分？",
+    "这句我接住了。你是想先把情绪说出来，还是在找一个具体的办法？",
+  ]);
 
   return {
     text:
       state.emotions.socialBattery < 30
-        ? "我在听。你不用一次说清楚，先说最难受的那一句就行。"
+        ? "我今天话少一点，但还在听。你挑最要紧的说。"
         : state.emotions.stress > 70
           ? "我先直说：我现在没完全听懂，但我不想敷衍你。把刚才那句话再讲具体一点。"
-          : `${supportPrefix(profile)}${memoryLine} 你现在最想让我听见的是哪一部分？`,
+          : wantsPracticalHelp
+            ? `${supportPrefix(profile)}先别急着把所有问题一起解决。你最想先处理哪一件？`
+            : `${supportPrefix(profile)}${listeningPrompt}`,
     meta: {
       availability,
       stance: "listen",
@@ -596,11 +1286,11 @@ export const starterMessages = (state: CharacterState): Message[] => {
       id: "seed-1",
       role: "assistant",
       text: isActive
-        ? `我现在在${activity.place}，${activity.title}。${activity.detail} 还得再忙一会儿，你那边怎么样？`
+        ? `我现在在${activity.place}，${activity.title}。${activity.detail} 刚在一起就各忙各的，不过我还是想知道你那边怎么样。`
         : upcoming
           ? `现在这段没安排。等会儿 ${clockTime(
               upcoming.startHour,
-            )} 要${upcoming.title}。你那边呢？`
+            )} 要${upcoming.title}。趁这会儿想问问你，今天过得怎么样？`
           : "今天的事差不多了，我先在家缓一会儿。你那边呢？",
       createdAt: Date.now() - 1000 * 60 * 8,
       worldTime: {

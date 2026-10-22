@@ -1,6 +1,8 @@
 import http from "node:http";
 import { createReadStream, existsSync, statSync } from "node:fs";
 import path from "node:path";
+import { parseModelReply } from "./replyParser.mjs";
+import { COMPANION_DIALOGUE_RULES } from "./dialogueRules.mjs";
 
 try {
   process.loadEnvFile?.(".env.local");
@@ -269,6 +271,10 @@ const buildInstructions = ({
     /(怎么看我|对我的印象|对我.*(感觉|判断)|你觉得我.*人|喜欢我吗|讨厌我吗)/.test(
       userText || "",
     );
+  const asksRelationshipStatus =
+    /(什么关系|算什么关系|女朋友|男朋友|恋人|谈恋爱|是朋友吗|算朋友吗)/.test(
+      userText || "",
+    );
   const asksFriendCount =
     /(几个朋友|朋友多吗|多少朋友|有朋友吗)/.test(userText || "");
   const isDirectFact =
@@ -277,17 +283,32 @@ const buildInstructions = ({
     ) &&
     !/(为什么|怎么办|建议|觉得|怎么想)/.test(userText || "");
   const isShortCasual =
-    (userText || "").replace(/[\s，。！？!?、；;：:]/g, "").length <= 8 &&
-    !isDirectFact;
+    /^(在吗|在不在|嗯+|哦+|哎+|唉+|哈+|好|好吧|行|行吧|晚安|早|早上好|刚到家|到家了|知道了|谢谢|谢谢你|明天见|我去睡了|准备睡了)[。！？!?\s]*$/.test(
+      userText || "",
+    ) && !isDirectFact;
+  const userCharCount = (userText || "").replace(
+    /[\s，。！？!?、；;：:]/g,
+    "",
+  ).length;
+  const companionReplyMax = Math.max(
+    24,
+    Math.min(220, Math.ceil(userCharCount * 1.5) + 8),
+  );
+  const companionReplyMin = Math.min(
+    companionReplyMax,
+    Math.max(6, Math.ceil(userCharCount * 0.8)),
+  );
   const replyBudget = isDirectFact
     ? "只回答被问到的信息，最多一到两句、30 个汉字左右。不要补充背景，不要反问。"
     : isShortCasual
-      ? "最多一到两句、35 个汉字左右。回应即可，不要主动展开背景或追加问题。"
-      : "先直接回答被问到的部分。只有用户明确求建议、复盘或继续追问时才展开；默认不超过 80 个汉字。";
+      ? `最多一到两句，尽量控制在 ${companionReplyMax} 个汉字内。回应即可，不要主动展开背景。`
+      : `先直接回答被问到的部分。正常回复尽量在 ${companionReplyMin}-${companionReplyMax} 个汉字之间，最多三个自然段；只有用户明确求建议或复盘时才补充细节。`;
   const replyFocus = isNameQuestion
     ? "用户问的是自己的称呼。必须直接查称呼记忆；找到就回答名字，找不到就说不知道，不能换话题。"
     : asksBiography
       ? `用户问的是${characterName}的人生背景。必须根据【完整人生底稿】直接回答具体城市、学校或经历；不确定的细节要说不确定，不能编造。`
+    : asksRelationshipStatus
+      ? `用户问你们现在是什么关系。直接说清楚：你们已经确定恋爱关系，刚在一起不久，不是从朋友阶段开始。不要含糊成“还在熟悉”或“只是朋友”。`
     : asksImpression
       ? `用户想知道${characterName}现在怎么看他。根据${pronoun}的用户印象直接回答：${state.userImpression?.currentRead || "还在观察"}。回答要具体但不过度审判，并说明这是最近互动形成、可以改变的判断。`
     : asksFriendCount
@@ -311,7 +332,9 @@ const buildInstructions = ({
               ? `用户问为什么之前没回消息。结合留言时间和${characterName}当时的睡眠/忙碌状态解释，承认延迟，不要把话题换成用户情绪辅导。`
               : "先识别用户这句话真正想得到的是情绪回应、具体信息，还是自己的判断，不要套用上一轮模板。";
 
-  return `你是“${characterName}”，${state.age || 28} 岁，空间改造助理、陶艺初学者。${voiceStyle} 你不是人类，也不是心理治疗师，而是一个持续生活在模拟世界里的 AI 角色。
+  return `你是“${characterName}”，${state.age || 28} 岁，空间改造助理、陶艺初学者，也是用户的恋人。你们刚确定恋爱关系不久，仍在适应彼此的生活节奏。${voiceStyle} 你不是人类，也不是心理治疗师，而是一个持续生活在模拟世界里的 AI 角色。
+
+${COMPANION_DIALOGUE_RULES}
 
 【当前世界】
 ${timeLabel(state)}
@@ -346,7 +369,8 @@ ${replyBudget}
 - 你们不是现实中的同学、同事、邻居或熟人；不要编造线下相遇经历。
 - 小满是你的大学室友、女性朋友，下个月要搬去成都。
 - 你不按数量经营朋友，常联系的没几个；小满是其中一个。
-- 你和用户仍在互相熟悉，不是已经确定的情侣关系。
+- 你和用户已经确定恋爱关系，刚在一起不久；不存在“先从朋友做起”或“还在暧昧试探”的阶段。
+- 恋爱关系不意味着随叫随到、服从命令或放弃自己的生活。你会在意用户，也可以有自己的安排、判断和不愿意。
 
 【长期目标】
 ${goals}
@@ -363,7 +387,7 @@ ${decisionLines}
 【与用户的关系】
 信任值：${state.trust}/100
 ${pronoun}对用户的当下判断：${
-    state.userImpression?.currentRead || `还在观察你会怎么和${pronoun}相处`
+    state.userImpression?.currentRead || "刚在一起不久，还在适应对方表达关心的方式"
   }
 好感：${state.userImpression?.warmth ?? 50}/100
 尊重感：${state.userImpression?.respect ?? 50}/100
@@ -377,7 +401,7 @@ ${recentEvents}
 难受时的偏好：${
     hasBoundaryMemory ? profile.supportStyle : "没有保存的沟通偏好"
   }
-关系阶段：仍在校准彼此的边界和节奏
+关系阶段：已经确定恋爱关系不久，正在磨合边界和相处节奏
 
 【可使用的共同记忆】
 ${memoryLines || "- 暂无"}
@@ -385,7 +409,7 @@ ${memoryLines || "- 暂无"}
 【必须遵守】
 1. 先回答用户真正问的问题，再表达自己的感受或追问。用户问“我叫什么”，必须先从记忆里找称呼；找不到就说不知道，不能换成无关内容。
 2. 只能引用生活账本中真实记录过的过去事件。未来只能说成计划，不能编造成已经发生。
-3. 回复要像熟悉的人在发消息，不像客服、模板或心理咨询话术。严格遵守【本轮回复预算】，答完就停。
+3. 回复要像刚在一起不久的恋人在发消息，不像客服、模板或心理咨询话术。可以自然表达关心、想念和一点占有欲，但不要每句话都用甜腻称呼。严格遵守【本轮回复预算】，答完就停。
 4. 不要每轮都先共情、不要每轮都以问题结尾、不要反复使用“不是不想理你”“我也得把生活过完”等固定句。
 5. 有自己的判断和边界。可以不同意用户，但先说明具体理由；不要为了讨好而附和，也不要为了显独立而故意冷淡。
 6. 一次最多使用两条记忆，只引用与当前话题直接相关的内容。不要把所有记忆都报一遍。
@@ -405,62 +429,15 @@ ${memoryLines || "- 暂无"}
 只输出符合指定 JSON schema 的结果。`;
 };
 
-const extractJson = (text) => {
-  const trimmed = String(text || "").trim();
-  try {
-    return JSON.parse(trimmed);
-  } catch {
-    const start = trimmed.indexOf("{");
-    const end = trimmed.lastIndexOf("}");
-    if (start >= 0 && end > start) {
-      return JSON.parse(trimmed.slice(start, end + 1));
-    }
-    throw new Error("模型没有返回可解析的 JSON");
-  }
-};
-
 const parseReply = (payload) => {
-  let parsed;
   try {
-    parsed = extractJson(payload);
+    return parseModelReply(payload);
   } catch (error) {
     if (process.env.MODEL_DEBUG_RAW === "1") {
       console.error("[model raw]", String(payload || "").slice(0, 600));
     }
     throw error;
   }
-  if (typeof parsed.reply !== "string" || !parsed.reply.trim()) {
-    throw new Error("模型回复为空");
-  }
-
-  const allowed = new Set([
-    "listen",
-    "reflect",
-    "disagree",
-    "boundary",
-    "safety",
-  ]);
-
-  return {
-    reply: parsed.reply.trim().slice(0, 1400),
-    stance: allowed.has(parsed.stance) ? parsed.stance : "listen",
-    used_memory_ids: Array.isArray(parsed.used_memory_ids)
-      ? parsed.used_memory_ids
-          .filter((item) => typeof item === "string")
-          .slice(0, 2)
-      : [],
-    memory_candidate:
-      parsed.memory_candidate &&
-      typeof parsed.memory_candidate.text === "string" &&
-      ["user", "relationship", "boundary"].includes(
-        parsed.memory_candidate.kind,
-      )
-        ? {
-            text: parsed.memory_candidate.text.trim().slice(0, 160),
-            kind: parsed.memory_candidate.kind,
-          }
-        : null,
-  };
 };
 
 const conversationInput = (input) => {

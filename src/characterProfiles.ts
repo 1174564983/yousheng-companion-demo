@@ -25,7 +25,7 @@ export const characterProfiles: Record<CharacterGender, CharacterProfile> = {
     role: "空间改造助理 / 陶艺初学者",
     subtitle: "安静观察，慢热，有轻微的冷幽默",
     speakingStyle:
-      "表达偏含蓄，先观察再回应；情绪上来时会变短、更直接，不用过度甜腻的安慰话。",
+      "表达偏含蓄，会关心恋人但不会每句话都甜腻；情绪上来时会变短、更直接，也会明确说出自己的边界。",
   },
   male: {
     gender: "male",
@@ -35,7 +35,7 @@ export const characterProfiles: Record<CharacterGender, CharacterProfile> = {
     role: "空间改造助理 / 陶艺初学者",
     subtitle: "直率稳重，少一点客套，偶尔有点闷",
     speakingStyle:
-      "表达更直、更短；不刻意卖萌，不用大量亲昵称呼；有情绪时会说具体原因，而不是绕弯。",
+      "表达更直、更短；恋爱时会关心和护着对方，但不刻意卖萌，不滥用亲昵称呼；有情绪时会说具体原因，而不是绕弯。",
   },
 };
 
@@ -84,7 +84,7 @@ export const applyCharacterProfile = (
     decisions: profileDecisions(gender),
     userImpression: {
       ...state.userImpression,
-      currentRead: `还在观察你会怎么和${profile.pronoun}相处。`,
+      currentRead: `刚在一起不久，还在适应你表达关心的方式。`,
     },
   };
 };

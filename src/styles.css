@@ -126,7 +126,11 @@ button:disabled {
 }
 
 .text-button {
-  padding: 8px 0;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 2px;
   border: 0;
   background: transparent;
   color: var(--muted);
@@ -319,7 +323,7 @@ button:disabled {
   color: rgba(247, 241, 230, 0.6);
 }
 
-.location-line span {
+.location-line svg {
   color: #e2b987;
 }
 
@@ -354,8 +358,56 @@ button:disabled {
 }
 
 .inner-card {
-  padding: 18px;
+  padding: 0;
   border-radius: 4px;
+  overflow: hidden;
+}
+
+.state-toggle {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 12px 16px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.state-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.state-toggle > span {
+  color: var(--orange);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+}
+
+.state-toggle > strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #66685f;
+  font-size: 10px;
+  font-weight: 500;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.state-toggle svg {
+  color: var(--muted);
+  transition: transform 180ms ease;
+}
+
+.inner-card[open] .state-toggle svg {
+  transform: rotate(180deg);
+}
+
+.state-details {
+  padding: 0 18px 18px;
+  border-top: 1px solid var(--line);
 }
 
 .state-grid {
@@ -624,7 +676,8 @@ button:disabled {
 
 .prompt-ribbon button {
   flex: 0 0 auto;
-  padding: 7px 11px;
+  min-height: 36px;
+  padding: 8px 12px;
   border: 1px solid var(--line);
   border-radius: 99px;
   background: transparent;
@@ -641,11 +694,11 @@ button:disabled {
 
 .delivery-queue {
   margin: 0 32px 8px;
-  padding: 9px 12px;
-  border: 1px dashed rgba(187, 93, 60, 0.32);
-  background: rgba(187, 93, 60, 0.055);
+  padding: 10px 12px;
+  border-left: 2px solid rgba(187, 93, 60, 0.55);
+  background: rgba(187, 93, 60, 0.045);
   color: #777369;
-  font-size: 9px;
+  font-size: 10px;
   line-height: 1.65;
 }
 
@@ -715,7 +768,7 @@ button:disabled {
   border: 1px solid var(--line);
   border-radius: 4px 16px 16px 16px;
   background: #f5efe4;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.85;
   letter-spacing: 0.01em;
 }
@@ -843,7 +896,7 @@ button:disabled {
   border: 0;
   outline: 0;
   background: transparent;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .composer input::placeholder {
@@ -852,8 +905,10 @@ button:disabled {
 
 .composer button {
   flex: 0 0 auto;
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
   border: 0;
   border-radius: 3px;
   background: var(--orange);
@@ -869,7 +924,7 @@ button:disabled {
   padding: 8px 34px 16px;
   color: #9c9c90;
   font-family: var(--mono);
-  font-size: 7px;
+  font-size: 8px;
   letter-spacing: 0.04em;
 }
 
@@ -937,11 +992,35 @@ button:disabled {
 }
 
 .biography-card {
-  min-height: 185px;
-  padding: 13px 14px;
+  min-height: 94px;
+  padding: 0;
   border: 1px solid var(--line);
   background: #f5efe4;
   scroll-snap-align: start;
+}
+
+.biography-card summary {
+  position: relative;
+  min-height: 92px;
+  padding: 13px 38px 13px 14px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.biography-card summary::-webkit-details-marker {
+  display: none;
+}
+
+.biography-chevron {
+  position: absolute;
+  right: 14px;
+  top: 14px;
+  color: var(--muted);
+  transition: transform 180ms ease;
+}
+
+.biography-card[open] .biography-chevron {
+  transform: rotate(180deg);
 }
 
 .biography-meta {
@@ -953,30 +1032,32 @@ button:disabled {
 }
 
 .biography-card h3 {
-  margin: 12px 0 4px;
-  font-size: 13px;
+  margin: 10px 0 4px;
+  font-size: 14px;
   font-weight: 600;
 }
 
-.biography-card > strong {
+.biography-card summary > strong {
   color: var(--orange);
   font-size: 8px;
   font-weight: 500;
 }
 
 .biography-card p {
-  margin: 9px 0;
+  margin: 0;
+  padding: 0 14px 8px;
   color: #686a61;
-  font-size: 9px;
+  font-size: 11px;
   line-height: 1.75;
 }
 
 .biography-card small {
   display: block;
+  margin: 0 14px 13px;
   padding-top: 8px;
   border-top: 1px dashed rgba(49, 52, 43, 0.13);
   color: #88877b;
-  font-size: 8px;
+  font-size: 10px;
   line-height: 1.65;
 }
 
@@ -1308,11 +1389,21 @@ button:disabled {
 }
 
 .delete-memory {
-  padding: 4px 0;
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 6px 8px;
   border: 0;
   background: transparent;
   color: #a29f94;
   cursor: pointer;
+  font-size: 10px;
+}
+
+.delete-memory span {
   font-size: 9px;
 }
 
@@ -1582,7 +1673,7 @@ button:disabled {
   display: grid;
   place-items: center;
   overflow: hidden;
-  padding: 34px 18px;
+  padding: 20px 16px;
   background:
     radial-gradient(circle at 16% 20%, rgba(197, 123, 89, 0.16), transparent 28%),
     radial-gradient(circle at 85% 80%, rgba(105, 125, 96, 0.18), transparent 30%),
@@ -1613,7 +1704,7 @@ button:disabled {
   position: relative;
   z-index: 1;
   width: min(680px, 100%);
-  padding: clamp(28px, 5vw, 52px);
+  padding: clamp(24px, 4vw, 40px);
   border: 1px solid rgba(49, 52, 43, 0.16);
   background: rgba(251, 247, 238, 0.92);
   box-shadow: 0 34px 100px rgba(68, 56, 40, 0.13);
@@ -1628,11 +1719,11 @@ button:disabled {
 }
 
 .setup-mark {
-  width: 54px;
-  height: 54px;
+  width: 46px;
+  height: 46px;
   display: grid;
   place-items: center;
-  margin: 24px 0;
+  margin: 14px 0 12px;
   border-radius: 50% 50% 44% 56%;
   background: var(--orange);
   color: #fff9ed;
@@ -1641,7 +1732,7 @@ button:disabled {
 
 .setup-card h1 {
   margin: 0;
-  font-size: clamp(31px, 5.5vw, 51px);
+  font-size: clamp(30px, 4.6vw, 45px);
   font-weight: 500;
   line-height: 1.3;
   letter-spacing: 0.015em;
@@ -1649,17 +1740,61 @@ button:disabled {
 
 .setup-lede {
   max-width: 560px;
-  margin: 20px 0 0;
+  margin: 14px 0 0;
   color: #686a61;
   font-size: 13px;
-  line-height: 1.95;
+  line-height: 1.8;
+}
+
+.setup-trustline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 18px 0 8px;
+}
+
+.setup-trustline span {
+  padding: 5px 8px;
+  border: 1px solid rgba(49, 52, 43, 0.13);
+  border-radius: 99px;
+  background: rgba(238, 231, 217, 0.5);
+  color: #77786e;
+  font-size: 9px;
+}
+
+.setup-disclosure {
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.setup-disclosure summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  color: #73756c;
+  cursor: pointer;
+  font-size: 10px;
+  list-style: none;
+}
+
+.setup-disclosure summary::-webkit-details-marker {
+  display: none;
+}
+
+.setup-disclosure summary svg {
+  transition: transform 180ms ease;
+}
+
+.setup-disclosure[open] summary svg {
+  transform: rotate(180deg);
 }
 
 .setup-rules {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
-  margin: 28px 0;
+  margin: 4px 0 16px;
 }
 
 .setup-rules div {
@@ -1684,7 +1819,7 @@ button:disabled {
 .setup-fields {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 14px;
 }
 
 .setup-fields label > span,
@@ -1771,7 +1906,8 @@ button:disabled {
 
 .setup-fields > label > input:not([type="checkbox"]) {
   width: 100%;
-  padding: 11px 13px;
+  min-height: 44px;
+  padding: 10px 13px;
   border: 1px solid var(--line);
   border-radius: 2px;
   outline: 0;
@@ -1786,7 +1922,8 @@ button:disabled {
 }
 
 .support-options button {
-  padding: 8px 12px;
+  min-height: 44px;
+  padding: 9px 12px;
   border: 1px solid var(--line);
   border-radius: 2px;
   background: transparent;
@@ -1825,6 +1962,7 @@ button:disabled {
   align-items: center;
   justify-content: space-between;
   gap: 20px;
+  min-height: 48px;
   padding: 14px 16px;
   border: 0;
   background: var(--orange);
@@ -1836,7 +1974,7 @@ button:disabled {
 
 .setup-start {
   width: 100%;
-  margin-top: 26px;
+  margin-top: 18px;
 }
 
 @media (max-width: 1060px) {
@@ -1903,48 +2041,80 @@ button:disabled {
   .profile-column {
     position: static;
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
+    grid-template-columns: minmax(128px, 0.82fr) minmax(0, 1.18fr);
+    gap: 0;
     margin-bottom: 8px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    background: rgba(251, 247, 238, 0.9);
+  }
+
+  .identity-card,
+  .now-card {
+    min-height: 118px;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    backdrop-filter: none;
   }
 
   .identity-card {
-    min-height: 142px;
+    background: rgba(251, 247, 238, 0.92);
   }
 
   .identity-copy {
-    left: 105px;
-    bottom: 30px;
+    left: 78px;
+    top: 16px;
+    bottom: auto;
   }
 
   .now-card {
-    min-height: 142px;
+    border-left: 1px solid rgba(255, 255, 255, 0.08);
   }
 
   .now-card h2 {
-    margin-top: 10px;
-    font-size: 17px;
+    margin: 9px 0 0;
+    font-size: 15px;
+    line-height: 1.35;
   }
 
   .now-card > p {
     display: none;
   }
 
-  .inner-card,
   .time-actions,
   .fine-print {
     display: none;
   }
 
+  .inner-card {
+    grid-column: 1 / -1;
+    display: block;
+    border: 0;
+    border-top: 1px solid var(--line);
+    border-radius: 0;
+    background: rgba(251, 247, 238, 0.92);
+    backdrop-filter: none;
+  }
+
+  .state-toggle {
+    min-height: 46px;
+    padding: 8px 13px;
+  }
+
   .main-column {
-    min-height: calc(100vh - 250px);
+    min-height: calc(100vh - 230px);
   }
 
   .chat-panel,
   .life-panel,
   .memory-panel {
-    height: calc(100dvh - 382px);
-    min-height: 420px;
+    height: calc(100dvh - 318px);
+    min-height: 440px;
+  }
+
+  .tabbar {
+    display: none;
   }
 
   .mobile-nav {
@@ -1969,7 +2139,8 @@ button:disabled {
     flex-direction: column;
     align-items: center;
     gap: 2px;
-    padding: 7px;
+    min-height: 48px;
+    padding: 6px 7px;
     border: 0;
     background: transparent;
     color: var(--muted);
@@ -1977,7 +2148,9 @@ button:disabled {
   }
 
   .mobile-nav button span {
-    font-size: 14px;
+    display: grid;
+    place-items: center;
+    min-height: 20px;
   }
 
   .mobile-nav button.active {
@@ -2033,36 +2206,39 @@ button:disabled {
   }
 
   .profile-column {
-    grid-template-columns: 1.05fr 0.95fr;
+    grid-template-columns: minmax(126px, 0.8fr) minmax(0, 1.2fr);
   }
 
   .identity-card,
   .now-card {
-    padding: 15px;
+    min-height: 108px;
+    padding: 12px;
   }
 
   .portrait {
-    width: 56px;
-    height: 56px;
-    font-size: 23px;
+    width: 46px;
+    height: 46px;
+    font-size: 19px;
   }
 
   .identity-copy {
-    left: 82px;
-    bottom: 31px;
+    left: 68px;
+    top: 14px;
+    bottom: auto;
   }
 
   .identity-line h1 {
-    font-size: 23px;
+    font-size: 20px;
   }
 
   .identity-copy p {
-    max-width: 120px;
+    max-width: 105px;
     font-size: 9px;
+    line-height: 1.45;
   }
 
   .availability-pill {
-    left: 15px;
+    left: 12px;
     bottom: 11px;
   }
 
@@ -2071,11 +2247,11 @@ button:disabled {
   }
 
   .now-card h2 {
-    font-size: 15px;
+    font-size: 14px;
   }
 
   .location-line {
-    margin-top: 9px;
+    margin-top: 8px;
   }
 
   .goal-note {
@@ -2092,11 +2268,12 @@ button:disabled {
   }
 
   .panel-heading {
-    padding: 20px 17px 16px;
+    padding: 15px 17px 12px;
   }
 
   .panel-heading h2 {
-    font-size: 20px;
+    margin-top: 8px;
+    font-size: 18px;
   }
 
   .today-chip {
@@ -2104,7 +2281,12 @@ button:disabled {
   }
 
   .prompt-ribbon {
-    padding: 0 17px 14px;
+    padding: 0 17px 12px;
+  }
+
+  .prompt-ribbon button {
+    min-height: 38px;
+    font-size: 11px;
   }
 
   .message-list {
@@ -2126,7 +2308,7 @@ button:disabled {
 
   .message-bubble {
     padding: 11px 13px;
-    font-size: 11.5px;
+    font-size: 13px;
   }
 
   .context-card {
@@ -2156,7 +2338,34 @@ button:disabled {
   }
 
   .biography-track {
-    grid-auto-columns: 78vw;
+    grid-auto-flow: row;
+    grid-template-columns: 1fr;
+    grid-auto-columns: auto;
+    overflow: visible;
+    padding-bottom: 0;
+    scroll-snap-type: none;
+  }
+
+  .biography-card {
+    min-height: 0;
+  }
+
+  .biography-card summary {
+    min-height: 82px;
+    padding: 11px 38px 11px 12px;
+  }
+
+  .biography-card h3 {
+    font-size: 13px;
+  }
+
+  .biography-card p {
+    padding-inline: 12px;
+    font-size: 11px;
+  }
+
+  .biography-card small {
+    margin-inline: 12px;
   }
 
   .decision-list {
@@ -2218,12 +2427,40 @@ button:disabled {
   }
 
   .setup-card {
-    padding: 26px 20px;
+    padding: 18px 17px;
   }
 
   .setup-card h1 {
-    font-size: 28px;
-    line-height: 1.36;
+    font-size: 25px;
+    line-height: 1.25;
+  }
+
+  .setup-lede {
+    margin-top: 10px;
+    font-size: 11.5px;
+    line-height: 1.65;
+  }
+
+  .setup-trustline {
+    margin: 12px 0 3px;
+  }
+
+  .setup-trustline span {
+    padding: 4px 7px;
+    font-size: 8px;
+  }
+
+  .setup-disclosure {
+    margin-bottom: 10px;
+  }
+
+  .setup-disclosure summary {
+    min-height: 38px;
+    font-size: 9px;
+  }
+
+  .setup-fields {
+    gap: 10px;
   }
 
   .setup-rules {
@@ -2231,7 +2468,16 @@ button:disabled {
   }
 
   .gender-options {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .gender-options > button {
+    min-height: 58px;
+    padding: 8px;
+  }
+
+  .gender-options small {
+    display: none;
   }
 
   .setup-rules div {
@@ -2247,7 +2493,10 @@ button:disabled {
   }
 
   .setup-mark {
-    margin: 18px 0;
+    width: 38px;
+    height: 38px;
+    margin: 10px 0 9px;
+    font-size: 16px;
   }
 }
 

@@ -58,8 +58,9 @@ export const analyzeRecentInteraction = (
     );
   const confused =
     /(叽里咕噜|答非所问|没回答|说的啥|说啥呢|听不懂)/.test(latest);
-  const prematureIntimacy =
-    /(女朋友|男朋友|老婆|亲我|抱抱|爱你|做我对象)/.test(latest);
+  const affection = /(想你|喜欢你|爱你|抱抱|亲我|女朋友|男朋友)/.test(
+    latest,
+  );
 
   const patch: NumericPatch = {
     valence: 0,
@@ -79,6 +80,11 @@ export const analyzeRecentInteraction = (
     patch.warmth += 5;
     patch.respect += 3;
     patch.trust += 1;
+  }
+  if (affection) {
+    patch.valence += 0.4;
+    patch.warmth += 3;
+    patch.stress -= 1;
   }
   if (controlling) {
     patch.stress += 8;
@@ -108,12 +114,6 @@ export const analyzeRecentInteraction = (
     patch.stress += 2;
     patch.predictability -= 2;
   }
-  if (prematureIntimacy) {
-    patch.stress += 3;
-    patch.socialBattery -= 2;
-    patch.respect -= 1;
-  }
-
   let currentRead = `${pronoun}还在继续观察你。`;
   if (insulting) {
     currentRead = `${pronoun}觉得你在用攻击性的话逼${pronoun}后退。`;
@@ -127,8 +127,8 @@ export const analyzeRecentInteraction = (
     currentRead = `${pronoun}觉得你的问题太密，像在审问${pronoun}。`;
   } else if (confused) {
     currentRead = `${pronoun}觉得刚才的回应没有真正对上你的问题。`;
-  } else if (prematureIntimacy) {
-    currentRead = `${pronoun}觉得你在很快拉近距离，${pronoun}会保持自己的节奏。`;
+  } else if (affection) {
+    currentRead = `${pronoun}听见了你的亲近，也在按自己的节奏回应。`;
   } else if (supportive) {
     currentRead = `${pronoun}觉得你在认真听，也愿意尊重${pronoun}的边界。`;
   }
@@ -140,6 +140,7 @@ export const analyzeRecentInteraction = (
     supportive ? "用户表达了理解、耐心或边界尊重。" : "",
     controlling ? "用户使用了命令式控制表达。" : "",
     insulting ? "用户使用了攻击性表达。" : "",
+    affection ? "用户表达了恋爱中的亲近或想念。" : "",
     "请通过语气、长度和是否追问自然体现，不要机械宣布情绪数值。",
   ]
     .filter(Boolean)

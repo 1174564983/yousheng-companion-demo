@@ -1,5 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  ArrowUp,
+  BookOpen,
+  ChevronDown,
+  MapPin,
+  MessageCircle,
+  NotebookText,
+  RotateCcw,
+  Settings2,
+  Trash2,
+} from "lucide-react";
+import {
   currentEventFor,
   emotionAfterEvent,
   hydrateCharacterState,
@@ -43,7 +54,7 @@ type StoredData = {
   unansweredMessages?: Message[];
 };
 
-const STORAGE_KEY = "yousheng-demo-v1";
+const STORAGE_KEY = "yousheng-romance-demo-v1";
 
 const defaultProfile: UserProfile = {
   name: "",
@@ -70,7 +81,7 @@ const buildInitialMemories = (profile: UserProfile): Memory[] => {
     {
       id: "mem-name",
       kind: "relationship",
-      text: `你叫${profile.name || "这位新朋友"}，我们还在慢慢熟悉。`,
+      text: `你叫${profile.name || "这位恋人"}，我们已经确定恋爱关系，刚在一起不久。`,
       createdAt: Date.now() + 1,
       source: "onboarding",
     },
@@ -123,13 +134,15 @@ const memoriesFromText = (text: string): Memory[] => {
     /(?:你)?记住了?(?:吗|没|没有)?/g,
     "",
   );
+  const explicitlyRemembered = /记住/.test(withoutName);
 
   if (
     /[？?]\s*$/.test(genericText) ||
     /(你还记得|记不记得)/.test(genericText) ||
-    !/(记住|我最近|我喜欢|我不喜欢|我在做|我正在|我希望)/.test(
-      genericText,
-    )
+    (!explicitlyRemembered &&
+      !/(我最近|我喜欢|我不喜欢|我在做|我正在|我喝|我吃|我住在|我的名字|我希望)/.test(
+        genericText,
+      ))
   ) {
     return result;
   }
@@ -261,19 +274,42 @@ const emotionSummary = (state: CharacterState) => {
 };
 
 const isDirectFactQuestion = (text: string) =>
-  /(我叫什么|我的名字|你叫什么|多少岁|几岁|做什么工作|职业|哪个城市|哪里人|住哪|现在.*几点|几点了|大学|学校|读书|上学|小时候|你会什么|你会做什么|几个朋友|朋友多吗|多少朋友|有朋友吗)/.test(
+  /(我叫什么|我的名字|你叫什么|多少岁|几岁|做什么工作|职业|哪个城市|哪里人|住哪|现在.*几点|几点了|大学|学校|读书|上学|小时候|你会什么|你会做什么|几个朋友|朋友多吗|多少朋友|有朋友吗|你今天在忙什么|在忙什么|你在干嘛|现在在做什么|此刻在哪|你(?:现在)?在哪(?!个城市))/.test(
     text,
   ) &&
   !/(为什么|怎么办|建议|觉得|怎么想)/.test(text);
 
 const isShortCasualMessage = (text: string) =>
-  text.replace(/[\s，。！？!?、；;：:]/g, "").length <= 8 &&
-  !isDirectFactQuestion(text);
+  /^(在吗|在不在|嗯+|哦+|哎+|唉+|哈+|好|好吧|行|行吧|晚安|早|早上好|刚到家|到家了|知道了|谢谢|谢谢你|明天见|我去睡了|准备睡了)[。！？!?\s]*$/.test(
+    text,
+  ) &&
+  !isDirectFactQuestion(text) &&
+  !/([？?]|吗|呢|什么|怎么|为什么|累|难受|失败|担心|想你|不想说|安排|尊重)/.test(
+    text,
+  );
 
 const firstSentence = (text: string) => {
   const trimmed = text.trim();
   const match = trimmed.match(/^.*?[。！？!?]/);
   return (match?.[0] || trimmed).trim();
+};
+
+const fitReplyToInput = (reply: string, userText: string) => {
+  const userLength = userText.replace(/[\s，。！？!?、；;：:]/g, "").length;
+  const maxLength = Math.max(
+    24,
+    Math.min(220, Math.ceil(userLength * 1.5) + 8),
+  );
+  if (reply.length <= maxLength) return reply;
+
+  const parts = reply.match(/[^。！？!?]+[。！？!?]?/g) || [reply];
+  let fitted = "";
+  for (const part of parts) {
+    if ((fitted + part).length > maxLength) break;
+    fitted += part;
+  }
+  if (fitted.trim()) return fitted.trim();
+  return `${reply.slice(0, Math.max(1, maxLength - 1)).trim()}…`;
 };
 
 const splitReplyForDelivery = (
@@ -318,6 +354,8 @@ const splitReplyForDelivery = (
 };
 
 function App() {
+  const testMode =
+    new URLSearchParams(window.location.search).get("test") === "1";
   const stored = useMemo(loadStored, []);
   const hydratedState = useMemo(() => {
     const base = hydrateCharacterState(stored?.state);
@@ -766,12 +804,17 @@ function App() {
       };
     }
 
-    if (
-      reply &&
-      isShortCasualMessage(combinedText) &&
-      reply.text.length > 32
-    ) {
-      reply = { ...reply, text: firstSentence(reply.text) };
+    if (reply && reply.meta?.stance !== "safety") {
+      reply = {
+        ...reply,
+        text: fitReplyToInput(reply.text, combinedText),
+      };
+    }
+    if (reply && isShortCasualMessage(combinedText) && reply.text.length > 32) {
+      reply = {
+        ...reply,
+        text: fitReplyToInput(firstSentence(reply.text), combinedText),
+      };
     }
 
     if (reply) {
@@ -784,7 +827,23 @@ function App() {
         recentMessages: history,
       });
       if (!audit.pass) {
-        reply = { ...reply, text: audit.text };
+        if (audit.reason === "duplicate") {
+          const localReply = generateReply(
+            combinedText,
+            responseState,
+            contextMemories,
+            contextProfile,
+            deferred,
+          );
+          reply = {
+            ...localReply,
+            meta: localReply.meta
+              ? { ...localReply.meta, source: "local" }
+              : undefined,
+          };
+        } else {
+          reply = { ...reply, text: audit.text };
+        }
       }
     }
 
@@ -1113,33 +1172,43 @@ function App() {
           <h1>
             {selectedProfile.pronoun}有自己的日子。
             <br />
-            不是随叫随到的答案。
+            也会认真和你谈恋爱。
           </h1>
           <p className="setup-lede">
-            {selectedProfile.name}会有自己的安排、情绪和判断。
-            {selectedProfile.pronoun}会记住一些事，也会忙，会拒绝，会在第二天改变主意。你可以影响
-            {selectedProfile.pronoun}，但不能完全控制
-            {selectedProfile.pronoun}。
+            你和{selectedProfile.name}已经确定恋爱关系，但才在一起不久。
+            {selectedProfile.pronoun}会有自己的安排、情绪和判断，也会忙，会拒绝，会在第二天改变主意。恋爱不会让
+            {selectedProfile.pronoun}变成随叫随到的人。
           </p>
 
-          <div className="setup-rules">
-            <div>
-              <span>01</span>
-              <p>这是一段与 AI 的模拟关系，不是现实人类。</p>
-            </div>
-            <div>
-              <span>02</span>
-              <p>记忆可以查看、修改和删除，不会偷偷替你决定。</p>
-            </div>
-            <div>
-              <span>03</span>
-              <p>本 demo 仅面向 18 岁以上体验者。</p>
-            </div>
+          <div className="setup-trustline">
+            <span>AI 模拟</span>
+            <span>记忆可查看、删除</span>
+            <span>18+</span>
           </div>
+          <details className="setup-disclosure">
+            <summary>
+              体验前，请知道这几件事
+              <ChevronDown size={15} aria-hidden="true" />
+            </summary>
+            <div className="setup-rules">
+              <div>
+                <span>01</span>
+                <p>这是一段与 AI 的模拟关系，不是现实人类。</p>
+              </div>
+              <div>
+                <span>02</span>
+              <p>这段恋爱里的记忆可以查看、修改和删除，不会偷偷替你决定。</p>
+              </div>
+              <div>
+                <span>03</span>
+                <p>本 demo 仅面向 18 岁以上体验者。</p>
+              </div>
+            </div>
+          </details>
 
           <div className="setup-fields">
             <div className="gender-picker">
-              <span>选择陪伴者的性别</span>
+              <span>选择你的恋人</span>
               <div className="gender-options">
                 {(
                   [
@@ -1207,7 +1276,7 @@ function App() {
             onClick={finishOnboarding}
             disabled={!adult || !setupName.trim()}
           >
-            进入{selectedProfile.name}的一天
+            开始和{selectedProfile.name}恋爱
             <span>→</span>
           </button>
         </section>
@@ -1229,16 +1298,20 @@ function App() {
           <i />
           {state.clock.paused
             ? "世界已暂停"
-            : "世界自动流动 · 与现实时间同步"}
+            : "世界正在继续"}
         </div>
         <div className="topbar-actions">
-          <button
-            className="text-button"
-            onClick={() => setShowEmotionPanel(true)}
-          >
-            测试调参
-          </button>
-          <button className="text-button" onClick={resetDemo}>
+          {testMode && (
+            <button
+              className="text-button test-control-button"
+              onClick={() => setShowEmotionPanel(true)}
+            >
+              <Settings2 size={16} aria-hidden="true" />
+              测试调参
+            </button>
+          )}
+          <button className="text-button reset-button" onClick={resetDemo}>
+            <RotateCcw size={15} aria-hidden="true" />
             重新开始
           </button>
         </div>
@@ -1256,7 +1329,7 @@ function App() {
                 <h1>{liveState.name}</h1>
                 <span>28</span>
               </div>
-              <p>{liveState.role}</p>
+              <p>你的恋人 · {liveState.role}</p>
             </div>
             <div className="availability-pill">
               <i />
@@ -1275,7 +1348,7 @@ function App() {
             <h2>{currentDisplayTitle}</h2>
             <p>{currentDisplayDetail}</p>
             <div className="location-line">
-              <span>⌖</span>
+              <MapPin size={14} aria-hidden="true" />
               {currentDisplayPlace}
             </div>
             {currentGoal && (
@@ -1289,61 +1362,69 @@ function App() {
             )}
           </section>
 
-          <section className="inner-card">
-            <div className="section-kicker">
-              <span>{activeProfile.pronoun}的内部状态</span>
-              <span>对demo可见</span>
+          <details className="inner-card" open={testMode || undefined}>
+            <summary className="state-toggle">
+              <span>她现在怎么样</span>
+              <strong>{emotionSummary(liveState)}</strong>
+              <ChevronDown size={16} aria-hidden="true" />
+            </summary>
+            <div className="state-details">
+              <div className="state-grid">
+                <div>
+                  <span>心情</span>
+                  <strong>
+                    {moodLabel(liveState.emotions.valence)}
+                  </strong>
+                </div>
+                <div>
+                  <span>压力</span>
+                  <strong>{liveState.emotions.stress}%</strong>
+                </div>
+                <div>
+                  <span>精力</span>
+                  <strong>{liveState.emotions.energy}%</strong>
+                </div>
+                <div>
+                  <span>社交电量</span>
+                  <strong>{liveState.emotions.socialBattery}%</strong>
+                </div>
+              </div>
+              <p className="emotion-summary">
+                {emotionSummary(liveState)}
+              </p>
+              <p className="trust-summary">
+                与你的关系：{trustLabel(liveState.trust)} ·{" "}
+                {Math.round(liveState.trust)}/100
+              </p>
+              <div className="judgment-summary">
+                <span>{activeProfile.pronoun}怎么看你</span>
+                <p>{liveState.userImpression.currentRead}</p>
+                <div>
+                  <small>好感 {liveState.userImpression.warmth}</small>
+                  <small>尊重 {liveState.userImpression.respect}</small>
+                  <small>
+                    可预测 {liveState.userImpression.predictability}
+                  </small>
+                </div>
+              </div>
             </div>
-            <div className="state-grid">
-              <div>
-                <span>心情</span>
-                <strong>
-                  {moodLabel(liveState.emotions.valence)}
-                </strong>
-              </div>
-              <div>
-                <span>压力</span>
-                <strong>{liveState.emotions.stress}%</strong>
-              </div>
-              <div>
-                <span>精力</span>
-                <strong>{liveState.emotions.energy}%</strong>
-              </div>
-              <div>
-                <span>社交电量</span>
-                <strong>{liveState.emotions.socialBattery}%</strong>
-              </div>
-            </div>
-            <p className="emotion-summary">
-              {emotionSummary(liveState)}
-            </p>
-            <p className="trust-summary">
-              与你的关系：{trustLabel(liveState.trust)} ·{" "}
-              {Math.round(liveState.trust)}/100
-            </p>
-            <div className="judgment-summary">
-              <span>{activeProfile.pronoun}怎么看你</span>
-              <p>{liveState.userImpression.currentRead}</p>
-              <div>
-                <small>好感 {liveState.userImpression.warmth}</small>
-                <small>尊重 {liveState.userImpression.respect}</small>
-                <small>
-                  可预测 {liveState.userImpression.predictability}
-                </small>
-              </div>
-            </div>
-          </section>
+          </details>
 
-          <div className="time-actions">
-            <button onClick={toggleWorldClock}>
-              {state.clock.paused ? "继续世界" : "暂停世界"}
-            </button>
-            <button onClick={() => advanceTime(1)}>测试：+1 小时</button>
-            <button onClick={() => advanceTime(8)}>测试：+8 小时</button>
-          </div>
-          <p className="fine-print">
-            现实一分钟，{activeProfile.pronoun}的世界也过一分钟。测试按钮只用于验证延迟回复和情绪变化。
-          </p>
+          {testMode && (
+            <>
+              <div className="time-actions">
+                <button onClick={toggleWorldClock}>
+                  {state.clock.paused ? "继续世界" : "暂停世界"}
+                </button>
+                <button onClick={() => advanceTime(1)}>测试：+1 小时</button>
+                <button onClick={() => advanceTime(8)}>测试：+8 小时</button>
+              </div>
+              <p className="fine-print">
+                测试模式：现实一分钟，{activeProfile.pronoun}
+                的世界也过一分钟。时间按钮仅用于验证延迟回复和情绪变化。
+              </p>
+            </>
+          )}
         </aside>
 
         <section className="main-column">
@@ -1382,9 +1463,15 @@ function App() {
                 <div>
                   <div className="section-kicker">
                     <span>和{liveState.name}说话</span>
-                    <span>会读取{activeProfile.pronoun}当前的生活状态</span>
+                    <span>不是随时在线，但会认真看</span>
                   </div>
-                  <h2>{activeProfile.pronoun}不是一直在等你。</h2>
+                  <h2>
+                    {current.title === "已经睡了"
+                      ? "她已经睡了，消息明早再看。"
+                      : currentAvailability === "free"
+                        ? "刚好赶上她的一段空闲。"
+                        : "她手头有事，但会看见你的话。"}
+                  </h2>
                 </div>
                 <div className="today-chip">
                   <span>
@@ -1398,9 +1485,8 @@ function App() {
                 <span>试一句</span>
                 {[
                   "你今天在忙什么？",
-                  "别去上课了，陪我聊",
+                  "刚下班，有点累",
                   "你还记得我希望你怎么回应吗？",
-                  "我是不是很失败？",
                 ].map((prompt) => (
                   <button key={prompt} onClick={() => sendMessage(prompt)}>
                     {prompt}
@@ -1411,9 +1497,11 @@ function App() {
               {unansweredMessages.length > 0 && (
                 <div className="delivery-queue">
                   <span>
-                    {unansweredMessages.length} 条消息已送达
+                    {unansweredMessages.length} 条消息留给她
                   </span>
-                  {liveState.name}会在醒来、忙完或情绪缓下来后主动回复，不需要你再问一次。
+                  {current.title === "已经睡了"
+                    ? `她已经睡了，明早会主动看消息，不用再问一次。`
+                    : `她现在在${currentDisplayPlace}，忙完会主动回你，不用再问一次。`}
                 </div>
               )}
 
@@ -1454,10 +1542,7 @@ function App() {
                               )
                             }
                           >
-                            {availabilityLabel(
-                              message.meta.availability,
-                            )}{" "}
-                            · {stanceLabel(message.meta.stance)} · 为什么这么说
+                            为什么这么说
                           </button>
                         </div>
                       )}
@@ -1521,22 +1606,20 @@ function App() {
                   aria-label="发送消息"
                   disabled={!draft.trim()}
                 >
-                  ↑
+                  <ArrowUp size={18} aria-hidden="true" />
                 </button>
               </form>
               <div className="composer-note">
                 <span>
-                  AI 模拟 ·{" "}
-                  {modelStatus.configured
-                    ? `${modelStatus.provider} / ${modelStatus.model}`
-                    : "本地规则模式"}
+                  AI 模拟
+                  {testMode && modelStatus.configured
+                    ? ` · ${modelStatus.provider} / ${modelStatus.model}`
+                    : ""}
                 </span>
                 <span>
                   {unansweredMessages.length
-                    ? `${unansweredMessages.length} 条消息等待${activeProfile.pronoun}主动回复`
-                    : modelStatus.configured
-                      ? "对话会携带世界状态、最近对话和记忆"
-                      : "配置 .env.local 后启用大模型"}
+                    ? `${unansweredMessages.length} 条消息等${activeProfile.pronoun}忙完`
+                    : "她会按自己的生活节奏回复"}
                 </span>
               </div>
             </section>
@@ -1564,17 +1647,28 @@ function App() {
                   <strong>现居 {state.currentCity}</strong>
                 </div>
                 <div className="biography-track">
-                  {state.biography.map((chapter) => (
-                    <article className="biography-card" key={chapter.id}>
-                      <div className="biography-meta">
-                        <span>{chapter.years}</span>
-                        <span>{chapter.age}</span>
-                      </div>
-                      <h3>{chapter.title}</h3>
-                      <strong>{chapter.place}</strong>
+                  {state.biography.map((chapter, index) => (
+                    <details
+                      className="biography-card"
+                      key={chapter.id}
+                      open={index === state.biography.length - 1}
+                    >
+                      <summary>
+                        <div className="biography-meta">
+                          <span>{chapter.years}</span>
+                          <span>{chapter.age}</span>
+                        </div>
+                        <h3>{chapter.title}</h3>
+                        <strong>{chapter.place}</strong>
+                        <ChevronDown
+                          className="biography-chevron"
+                          size={16}
+                          aria-hidden="true"
+                        />
+                      </summary>
                       <p>{chapter.summary}</p>
                       <small>{chapter.impact}</small>
-                    </article>
+                    </details>
                   ))}
                 </div>
               </section>
@@ -1753,9 +1847,11 @@ function App() {
                       </div>
                       <button
                         className="delete-memory"
+                        aria-label={`删除记忆：${memory.text}`}
                         onClick={() => removeMemory(memory.id)}
                       >
-                        删除
+                        <Trash2 size={15} aria-hidden="true" />
+                        <span>删除</span>
                       </button>
                     </article>
                   ))
@@ -1768,7 +1864,7 @@ function App() {
               </div>
 
               <div className="memory-add-note">
-                <span>DEMO 记录规则</span>
+                <span>记忆规则</span>
                 <p>
                   在对话里说“记住……”或“我最近……”，下一条消息后会出现一条可删除的记忆。
                 </p>
@@ -1780,16 +1876,18 @@ function App() {
 
       <nav className="mobile-nav" aria-label="移动端导航">
         {[
-          ["chat", "对话", "◌"],
-          ["life", "人生", "◐"],
-          ["memory", "记忆", "◇"],
-        ].map(([value, label, glyph]) => (
+          { value: "chat" as Tab, label: "对话", Icon: MessageCircle },
+          { value: "life" as Tab, label: "人生", Icon: BookOpen },
+          { value: "memory" as Tab, label: "记忆", Icon: NotebookText },
+        ].map(({ value, label, Icon }) => (
           <button
             key={value}
             className={tab === value ? "active" : ""}
-            onClick={() => setTab(value as Tab)}
+            onClick={() => setTab(value)}
           >
-            <span>{glyph}</span>
+            <span>
+              <Icon size={19} strokeWidth={1.7} aria-hidden="true" />
+            </span>
             {label}
           </button>
         ))}

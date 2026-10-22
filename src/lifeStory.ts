@@ -300,9 +300,9 @@ export const findDecisionAdvice = (
 };
 
 export const trustLabel = (trust: number) => {
-  if (trust < 25) return "还很陌生";
-  if (trust < 45) return "慢慢熟悉";
-  if (trust < 60) return "开始信任";
-  if (trust < 80) return "熟悉且信任";
-  return "重要的人";
+  if (trust < 25) return "刚开始磨合";
+  if (trust < 45) return "刚开始交往";
+  if (trust < 60) return "越来越信任";
+  if (trust < 80) return "稳定恋人";
+  return "亲密的恋人";
 };

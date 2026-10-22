@@ -3,6 +3,9 @@ import { chromium } from "playwright";
 
 const timeoutMs = 60_000;
 const baseUrl = process.env.DEMO_URL || "http://127.0.0.1:4173/";
+const testUrl = new URL(baseUrl);
+testUrl.searchParams.set("test", "1");
+const testBaseUrl = testUrl.toString();
 
 const clockMinutes = async (page) => {
   const label = await page
@@ -35,13 +38,37 @@ try {
   await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
   await page.evaluate(() => localStorage.clear());
   await page.reload({ waitUntil: "domcontentloaded" });
+  await page.getByText("选择你的恋人").waitFor();
 
   await page.getByPlaceholder("输入名字或昵称").fill("阳阳");
   await page.getByRole("button", { name: "直接说问题" }).click();
   await page
     .getByText("我已年满 18 岁，并理解这是 AI 模拟体验。")
     .click();
-  await page.getByRole("button", { name: /进入阿岚的一天/ }).click();
+  await page.getByRole("button", { name: /开始和阿岚恋爱/ }).click();
+
+  if ((await page.getByRole("button", { name: "测试调参" }).count()) > 0) {
+    throw new Error("普通用户体验中露出了测试调参入口");
+  }
+  if ((await page.getByText(/DeepSeek\s*\//).count()) > 0) {
+    throw new Error("普通用户体验中露出了模型服务信息");
+  }
+  const collapsedState = await page
+    .locator(".inner-card .state-grid")
+    .isVisible()
+    .catch(() => false);
+  if (collapsedState) {
+    throw new Error("角色内部状态默认完全展开，抢占聊天注意力");
+  }
+  const initialRelationship = await page
+    .locator(".inner-card")
+    .textContent();
+  if (!initialRelationship?.includes("刚开始交往")) {
+    throw new Error(`初始关系不是恋爱关系：${initialRelationship}`);
+  }
+
+  await page.goto(testBaseUrl, { waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: "测试调参" }).waitFor();
 
   const firstTime = await clockMinutes(page);
   await page.clock.fastForward(61_000);
@@ -82,10 +109,10 @@ try {
       previousCount,
       { timeout: timeoutMs },
     );
-    return page
-      .locator(".message-row.assistant .message-bubble")
-      .last()
-      .innerText();
+    const bubbles = await page
+      .locator(".message-row.assistant .message-bubble:not(.typing)")
+      .allInnerTexts();
+    return bubbles.slice(previousCount).join("\n");
   };
   await composer.fill("我叫什么名字");
   await page.getByRole("button", { name: "发送消息" }).click();
@@ -146,6 +173,13 @@ try {
   const originReply = await sendAndWait("我们在哪认识的？");
   if (!/(有生|demo|第一次|这里|线上)/i.test(originReply)) {
     throw new Error(`关系来源回答不正确：${originReply}`);
+  }
+  const relationshipReply = await sendAndWait("我们现在是什么关系？");
+  if (
+    !/(恋人|谈恋爱|女朋友)/.test(relationshipReply) ||
+    /(还是朋友|只是朋友|朋友阶段)/.test(relationshipReply)
+  ) {
+    throw new Error(`恋爱关系回答不正确：${relationshipReply}`);
   }
 
   await sendAndWait("我叫小夏，你记住了吗");
@@ -228,6 +262,14 @@ try {
     .locator(".message-row.assistant")
     .count();
   await page.getByRole("button", { name: "测试：+8 小时" }).click();
+  await page.waitForFunction(
+    (before) =>
+      Array.from(document.querySelectorAll(".state-grid strong"))
+        .map((element) => element.textContent?.trim() ?? "")
+        .join("|") !== before,
+    emotionValuesBefore.join("|"),
+    { timeout: 5_000 },
+  );
   const emotionAfter = await page.locator(".emotion-summary").innerText();
   const emotionValuesAfter = await page
     .locator(".state-grid strong")
@@ -239,7 +281,7 @@ try {
   await composer.fill("先睡吧。你明天醒了记得回我。");
   await page.getByRole("button", { name: "发送消息" }).click();
   await page.waitForTimeout(650);
-  await page.getByText(/1 条消息已送达/).waitFor();
+  await page.getByText(/1 条消息留给她/).waitFor();
   const assistantCountWhileSleeping = await page
     .locator(".message-row.assistant")
     .count();
@@ -303,8 +345,24 @@ try {
   await mobilePage
     .getByText("我已年满 18 岁，并理解这是 AI 模拟体验。")
     .click();
+  const onboardingMetrics = await mobilePage.evaluate(() => {
+    const button = Array.from(document.querySelectorAll("button")).find(
+      (element) =>
+        element.textContent?.includes("开始和阿岚恋爱"),
+    );
+    const box = button?.getBoundingClientRect();
+    return {
+      viewportHeight: window.innerHeight,
+      buttonBottom: box?.bottom ?? Number.POSITIVE_INFINITY,
+    };
+  });
+  if (onboardingMetrics.buttonBottom > onboardingMetrics.viewportHeight) {
+    throw new Error(
+      `手机首次体验按钮不在首屏：${JSON.stringify(onboardingMetrics)}`,
+    );
+  }
   await mobilePage
-    .getByRole("button", { name: /进入阿岚的一天/ })
+    .getByRole("button", { name: /开始和阿岚恋爱/ })
     .click();
   await mobilePage.waitForTimeout(450);
 
@@ -318,6 +376,11 @@ try {
       innerHeight: window.innerHeight,
       composerBottom: composerBox?.bottom || 0,
       navTop: navBox?.top || 0,
+      desktopTabsVisible:
+        getComputedStyle(document.querySelector(".tabbar")).display !== "none",
+      testControlVisible: Array.from(document.querySelectorAll("button")).some(
+        (element) => element.textContent?.trim() === "测试调参",
+      ),
       horizontalOverflow:
         document.documentElement.scrollWidth >
         document.documentElement.clientWidth,
@@ -326,7 +389,9 @@ try {
 
   if (
     mobileLayout.horizontalOverflow ||
-    mobileLayout.composerBottom > mobileLayout.navTop
+    mobileLayout.composerBottom > mobileLayout.navTop ||
+    mobileLayout.desktopTabsVisible ||
+    mobileLayout.testControlVisible
   ) {
     throw new Error(`移动端布局越界：${JSON.stringify(mobileLayout)}`);
   }
@@ -335,6 +400,7 @@ try {
     path: "output/playwright/mobile-chat.png",
     fullPage: false,
   });
+  await mobilePage.goto(testBaseUrl, { waitUntil: "domcontentloaded" });
   await mobilePage.getByRole("button", { name: "测试调参" }).click();
   await mobilePage.waitForTimeout(350);
   await mobilePage.screenshot({
@@ -364,7 +430,7 @@ try {
   await controlPage.clock.install({
     time: new Date("2026-10-21T10:00:00+08:00"),
   });
-  await controlPage.goto(baseUrl, { waitUntil: "domcontentloaded" });
+  await controlPage.goto(testBaseUrl, { waitUntil: "domcontentloaded" });
   await controlPage.evaluate(() => localStorage.clear());
   await controlPage.reload({ waitUntil: "domcontentloaded" });
   await controlPage.getByPlaceholder("输入名字或昵称").fill("测试者");
@@ -372,7 +438,7 @@ try {
     .getByText("我已年满 18 岁，并理解这是 AI 模拟体验。")
     .click();
   await controlPage
-    .getByRole("button", { name: /进入阿岚的一天/ })
+    .getByRole("button", { name: /开始和阿岚恋爱/ })
     .click();
   await controlPage.getByRole("button", { name: "测试：+8 小时" }).click();
   await controlPage.getByRole("button", { name: "测试：+1 小时" }).click();
@@ -437,7 +503,7 @@ try {
   await interactionPage.clock.install({
     time: new Date("2026-10-21T10:00:00+08:00"),
   });
-  await interactionPage.goto(baseUrl, { waitUntil: "domcontentloaded" });
+  await interactionPage.goto(testBaseUrl, { waitUntil: "domcontentloaded" });
   await interactionPage.evaluate(() => localStorage.clear());
   await interactionPage.reload({ waitUntil: "domcontentloaded" });
   await interactionPage
@@ -447,7 +513,7 @@ try {
     .getByText("我已年满 18 岁，并理解这是 AI 模拟体验。")
     .click();
   await interactionPage
-    .getByRole("button", { name: /进入阿岚的一天/ })
+    .getByRole("button", { name: /开始和阿岚恋爱/ })
     .click();
   await interactionPage.getByRole("button", { name: "测试：+8 小时" }).click();
   await interactionPage.getByRole("button", { name: "测试：+1 小时" }).click();
@@ -533,7 +599,7 @@ try {
   await turnPage.clock.install({
     time: new Date("2026-10-21T10:00:00+08:00"),
   });
-  await turnPage.goto(baseUrl, { waitUntil: "domcontentloaded" });
+  await turnPage.goto(testBaseUrl, { waitUntil: "domcontentloaded" });
   await turnPage.evaluate(() => localStorage.clear());
   await turnPage.reload({ waitUntil: "domcontentloaded" });
   await turnPage.getByPlaceholder("输入名字或昵称").fill("测试者");
@@ -541,7 +607,7 @@ try {
     .getByText("我已年满 18 岁，并理解这是 AI 模拟体验。")
     .click();
   await turnPage
-    .getByRole("button", { name: /进入阿岚的一天/ })
+    .getByRole("button", { name: /开始和阿岚恋爱/ })
     .click();
   await turnPage.getByRole("button", { name: "测试：+8 小时" }).click();
   await turnPage.getByRole("button", { name: "测试：+1 小时" }).click();
@@ -559,7 +625,7 @@ try {
   await turnPage.waitForTimeout(120);
   await turnInput.fill("你现在住在哪个城市？");
   await turnPage.getByRole("button", { name: "发送消息" }).click();
-  await turnPage.getByText(/1 条消息已送达/).waitFor();
+  await turnPage.getByText(/1 条消息留给她/).waitFor();
   await turnPage.waitForFunction(
     () =>
       !document.querySelector(".message-bubble.typing") &&
@@ -580,7 +646,7 @@ try {
   await genderPage.clock.install({
     time: new Date("2026-10-21T10:00:00+08:00"),
   });
-  await genderPage.goto(baseUrl, { waitUntil: "domcontentloaded" });
+  await genderPage.goto(testBaseUrl, { waitUntil: "domcontentloaded" });
   await genderPage.evaluate(() => localStorage.clear());
   await genderPage.reload({ waitUntil: "domcontentloaded" });
   await genderPage.getByRole("button", { name: /男性/ }).click();
@@ -595,7 +661,7 @@ try {
     fullPage: false,
   });
   await genderPage
-    .getByRole("button", { name: /进入阿川的一天/ })
+    .getByRole("button", { name: /开始和阿川恋爱/ })
     .click();
   await genderPage.getByRole("heading", { name: "阿川" }).waitFor();
   await genderPage.getByRole("button", { name: "测试：+8 小时" }).click();
